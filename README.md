@@ -1,10 +1,10 @@
-# Tea-Fi Vesting
+# Vesting
 
 <!-- [![Build Status](https://github.com/Syndika-Corp/solidity-project-template/workflows/CI/badge.svg)](https://github.com/Syndika-Corp/solidity-project-template/actions)
 [![Coverage Status](https://codecov.io/gh/Syndika-Corp/solidity-project-template/branch/main/graph/badge.svg)](https://codecov.io/gh/Syndika-Corp/solidity-project-template) -->
 
 
-> Tea-Fi Vesting Contracts
+> Vesting Contracts
 
 ## Project requirements
 

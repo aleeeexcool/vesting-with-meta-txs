@@ -1,6 +1,6 @@
 pragma solidity =0.8.23;
 
-interface ITeaVesting {
+interface IVesting {
     // ------------------------------------------ Errors ---------------------------------------
     error OnlyVestingOwner();
 

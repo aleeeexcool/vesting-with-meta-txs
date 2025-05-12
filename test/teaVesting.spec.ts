@@ -1,9 +1,9 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import {
-	TeaVesting,
+	Vesting,
 	TestERC20,
 	TestERC20__factory,
-	TeaVesting__factory,
+	Vesting__factory,
 } from '../typechain-types';
 import { ethers, config } from 'hardhat';
 import { expect } from 'chai';
@@ -25,8 +25,8 @@ async function increaseTimestamp(time: BigNumberish) {
 	await ethers.provider.send("evm_mine");
 }
 
-describe('TeaVesting', () => {
-	let teaVesting: TeaVesting
+describe('Vesting', () => {
+	let vesting: Vesting
   let teaToken: TestERC20;
 	let presaleTeaTokenA: TestERC20;
 	let presaleTeaTokenB: TestERC20;
@@ -48,7 +48,7 @@ describe('TeaVesting', () => {
 	let nextMonth: BigNumberish;
 
 	const getSignatureOffChainOwnership = async(
-		teaVesting: TeaVesting,
+		vesting: Vesting,
 		from: HardhatEthersSigner,
 		to: HardhatEthersSigner,
 		token: TestERC20,
@@ -59,7 +59,7 @@ describe('TeaVesting', () => {
 		const privateKey = wallet.privateKey;
 		const TRANSFER_OWNER_TYPEHASH = 
 			'0x33c8deca30830df19b44e9ca8b7b53a5c4dc23e1161fc88d6f7e6954c4f54a9f';
-		const nonce = await teaVesting.nonces(from);
+		const nonce = await vesting.nonces(from);
 		const currentTime = await getCurrentBlockTimestamp();
 		const deadline = currentTime + 15 * 60;
 		const structHash = ethers.keccak256(
@@ -82,7 +82,7 @@ describe('TeaVesting', () => {
 				],
 			),
 		);
-		const digestFromContract = await teaVesting.hashTypedDataV4(structHash);
+		const digestFromContract = await vesting.hashTypedDataV4(structHash);
 		const { v, r, s } = ecsign(
 			Buffer.from(digestFromContract.slice(2), "hex"),
 			Buffer.from(privateKey.slice(2), "hex")
@@ -118,8 +118,8 @@ describe('TeaVesting', () => {
 
 		currentTimestamp = getCurrentTimestamp() + 100;
 		nextMonth = currentTimestamp + ONE_MONTH;
-		teaVesting = await new TeaVesting__factory(deployer).deploy(
-			'TeaVesting', 																					// _name 
+		vesting = await new Vesting__factory(deployer).deploy(
+			'vesting', 																					// _name 
 			ownerVesting.address, 																	// _initialOwner
 			teaToken, 																							// _tea
 			treasury, 																							// _treasury
@@ -131,7 +131,7 @@ describe('TeaVesting', () => {
 		);
 
 		await teaToken.connect(deployer).transfer(treasury, threeMillion);
-		await teaToken.connect(treasury).approve(teaVesting, threeMillion);
+		await teaToken.connect(treasury).approve(vesting, threeMillion);
   });
 
   it('Check vesting config', async () => {
@@ -140,9 +140,9 @@ describe('TeaVesting', () => {
 			configTokenB,
 			configTokenC
 		] = await Promise.all([
-			teaVesting.getVestingTokens(presaleTeaTokenA),
-			teaVesting.getVestingTokens(presaleTeaTokenB),
-			teaVesting.getVestingTokens(presaleTeaTokenC),
+			vesting.getVestingTokens(presaleTeaTokenA),
+			vesting.getVestingTokens(presaleTeaTokenB),
+			vesting.getVestingTokens(presaleTeaTokenC),
 		]);
 		expect(configTokenA[0]).to.equal(nextMonth);
 		expect(configTokenB[0]).to.equal(nextMonth);
@@ -183,29 +183,29 @@ describe('TeaVesting', () => {
 
 	it('Vest token', async()=>{
 		await Promise.all([
-			presaleTeaTokenA.connect(user1).approve(teaVesting, thousand),
-			presaleTeaTokenB.connect(user2).approve(teaVesting, thousand),
-			presaleTeaTokenC.connect(user3).approve(teaVesting, thousand),
+			presaleTeaTokenA.connect(user1).approve(vesting, thousand),
+			presaleTeaTokenB.connect(user2).approve(vesting, thousand),
+			presaleTeaTokenC.connect(user3).approve(vesting, thousand),
 		]);
 
-		const revertTx = teaVesting.connect(user1).vest(presaleTeaTokenA, thousand);
-		await expect(revertTx).to.be.revertedWithCustomError(teaVesting, 'VestingDoesNotStart');
+		const revertTx = vesting.connect(user1).vest(presaleTeaTokenA, thousand);
+		await expect(revertTx).to.be.revertedWithCustomError(vesting, 'VestingDoesNotStart');
 
 		await increaseTimestamp(100);
 
 		await Promise.all([
-			teaVesting.connect(user1).vest(presaleTeaTokenA, thousand),
-			teaVesting.connect(user2).vest(presaleTeaTokenB, thousand),
-			teaVesting.connect(user3).vest(presaleTeaTokenC, thousand),
+			vesting.connect(user1).vest(presaleTeaTokenA, thousand),
+			vesting.connect(user2).vest(presaleTeaTokenB, thousand),
+			vesting.connect(user3).vest(presaleTeaTokenC, thousand),
 		]);
 		const [
 			vestingDataUser1,
 			vestingDataUser2,
 			vestingDataUser3
 		] = await Promise.all([
-			teaVesting.getVestingUsers(user1, presaleTeaTokenA),
-			teaVesting.getVestingUsers(user2, presaleTeaTokenB),
-			teaVesting.getVestingUsers(user3, presaleTeaTokenC),
+			vesting.getVestingUsers(user1, presaleTeaTokenA),
+			vesting.getVestingUsers(user2, presaleTeaTokenB),
+			vesting.getVestingUsers(user3, presaleTeaTokenC),
 		])
 		
 		const balanceWithoutInitialClaimUser1 = vestingDataUser1[0] - vestingDataUser1[1];
@@ -237,53 +237,53 @@ describe('TeaVesting', () => {
 	});
 
 	it('To be reverted by other claimer', async() => {
-		const revertTx = teaVesting.connect(ownerVesting).claim(presaleTeaTokenA, user1);
+		const revertTx = vesting.connect(ownerVesting).claim(presaleTeaTokenA, user1);
 		await expect(revertTx).to.be.reverted;
 	})
 
 	it('To claim tokenA', async() => {
 		const balanceOfTeaBefore = await teaToken.balanceOf(user1);
-		const claimBefore = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimBefore = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 
-		await teaVesting.connect(user1).claim(presaleTeaTokenA, user1);
+		await vesting.connect(user1).claim(presaleTeaTokenA, user1);
 
 		const balanceOfTeaAfter = await teaToken.balanceOf(user1);
-		const claimAfter = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimAfter = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 
 		expect(balanceOfTeaAfter).to.gt(balanceOfTeaBefore);
 		expect(claimAfter[1]).to.gt(claimBefore[1]);
 	})
 
 	it('Transfer ownership to other', async()=>{
-		let owner = await teaVesting.getVestingOwners(user1, presaleTeaTokenA);
+		let owner = await vesting.getVestingOwners(user1, presaleTeaTokenA);
 		expect(owner).to.equal(ethers.ZeroAddress);
 
-		await teaVesting.connect(user1).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
-		const revertTx = teaVesting.connect(user1).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
+		await vesting.connect(user1).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
+		const revertTx = vesting.connect(user1).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
 		await expect(revertTx).to.be.reverted;
 
-		owner = await teaVesting.getVestingOwners(user1, presaleTeaTokenA);
+		owner = await vesting.getVestingOwners(user1, presaleTeaTokenA);
 		expect(owner).to.equal(ownerVesting.address);
 	});
 
 	it('Try to claim and vest after transfer ownership', async() => {
 		await presaleTeaTokenA.connect(deployer).transfer(user1, thousand);
-	  await presaleTeaTokenA.connect(user1).approve(teaVesting, thousand);
+	  await presaleTeaTokenA.connect(user1).approve(vesting, thousand);
 
-		const revertVest = teaVesting.vest(presaleTeaTokenA, thousand);
-		const revertClaim = teaVesting.claim(presaleTeaTokenA, user1);
+		const revertVest = vesting.vest(presaleTeaTokenA, thousand);
+		const revertClaim = vesting.claim(presaleTeaTokenA, user1);
 
 		expect(revertVest).to.be.reverted;
 		expect(revertClaim).to.be.reverted;
 	});
 
 	it('Try to claim by ownership', async() => {
-		const claimBefore = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimBefore = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceBefore = await teaToken.balanceOf(user1);
 
-		await teaVesting.connect(ownerVesting).claim(presaleTeaTokenA, user1);
+		await vesting.connect(ownerVesting).claim(presaleTeaTokenA, user1);
 
-		const claimAfter = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimAfter = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceAfter = await teaToken.balanceOf(user1);
 
 		expect(claimBefore[1]).to.lt(claimAfter[1]);
@@ -291,18 +291,18 @@ describe('TeaVesting', () => {
 	});
 
 	it('Return ownership to user1', async()=>{
-		await teaVesting.connect(ownerVesting).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
-		const owner = await teaVesting.getVestingOwners(user1, presaleTeaTokenA);
+		await vesting.connect(ownerVesting).transferOwnerOnChain(presaleTeaTokenA, user1, ownerVesting);
+		const owner = await vesting.getVestingOwners(user1, presaleTeaTokenA);
 		expect(owner).to.equal(ethers.ZeroAddress);
 	});
 
 	it('Try to claim after returned ownership', async() => {
-		const claimBefore = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimBefore = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceBefore = await teaToken.balanceOf(user1);
 
-		await teaVesting.connect(user1).claim(presaleTeaTokenA, user1);
+		await vesting.connect(user1).claim(presaleTeaTokenA, user1);
 
-		const claimAfter = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const claimAfter = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceAfter = await teaToken.balanceOf(user1);
 
 		expect(claimBefore[0]).to.equal(claimAfter[0]);
@@ -311,12 +311,12 @@ describe('TeaVesting', () => {
 	});
 
 	it('Try to vest second time after returned ownership', async() => {
-		const vestBefore = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const vestBefore = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceBefore = await teaToken.balanceOf(user1);
 
-		await teaVesting.connect(user1).vest(presaleTeaTokenA, thousand);
+		await vesting.connect(user1).vest(presaleTeaTokenA, thousand);
 
-		const vestAfter = await teaVesting.getVestingUsers(user1, presaleTeaTokenA);
+		const vestAfter = await vesting.getVestingUsers(user1, presaleTeaTokenA);
 		const userBalanceAfter = await teaToken.balanceOf(user1);
 
 		expect(vestBefore[0]).to.lt(vestAfter[0]);
@@ -328,15 +328,15 @@ describe('TeaVesting', () => {
 		await increaseTimestamp(ONE_MONTH / 2);
 		let balanceBeforeClaim = await teaToken.balanceOf(user2);
 
-		let unlockReward = await teaVesting.getUserUnlockReward(presaleTeaTokenB, user2);
+		let unlockReward = await vesting.getUserUnlockReward(presaleTeaTokenB, user2);
 		await increaseTimestamp(1);
-		let unlockRewardAfterSec = await teaVesting.getUserUnlockReward(presaleTeaTokenB, user2);
+		let unlockRewardAfterSec = await vesting.getUserUnlockReward(presaleTeaTokenB, user2);
 
 		const tokenPerSec = unlockRewardAfterSec - unlockReward;
 
-		await teaVesting.connect(user2).claim(presaleTeaTokenB, user2);
+		await vesting.connect(user2).claim(presaleTeaTokenB, user2);
 
-		let claim = await teaVesting.getVestingUsers(user2, presaleTeaTokenB);
+		let claim = await vesting.getVestingUsers(user2, presaleTeaTokenB);
 		let balance = await teaToken.balanceOf(user2);
 
 
@@ -344,15 +344,15 @@ describe('TeaVesting', () => {
 		expect(balance).to.equal(claim[1] + (thousand * INITIAL_PERCENT[1] / 1000n));
 
 		await increaseTimestamp((ONE_MONTH / 2) - 100);
-		await teaVesting.connect(user2).claim(presaleTeaTokenB, user2);
-		claim = await teaVesting.getVestingUsers(user2, presaleTeaTokenB);
+		await vesting.connect(user2).claim(presaleTeaTokenB, user2);
+		claim = await vesting.getVestingUsers(user2, presaleTeaTokenB);
 		balance = await teaToken.balanceOf(user2);
 
 		expect(balance).to.equal(claim[1] + (thousand * INITIAL_PERCENT[1] / 1000n));
 
 		await increaseTimestamp(100);
-		await teaVesting.connect(user2).claim(presaleTeaTokenB, user2);
-		claim = await teaVesting.getVestingUsers(user2, presaleTeaTokenB);
+		await vesting.connect(user2).claim(presaleTeaTokenB, user2);
+		claim = await vesting.getVestingUsers(user2, presaleTeaTokenB);
 		balance = await teaToken.balanceOf(user2);
 		
 		expect(balance).to.equal(claim[1] + (thousand * INITIAL_PERCENT[1] / 1000n));
@@ -366,14 +366,14 @@ describe('TeaVesting', () => {
 			unlockedRewardBefore,
 			balanceBefore
 		] = await Promise.all([
-			teaVesting.getVestingUsers(user3, presaleTeaTokenC),
-			teaVesting.getUserUnlockReward(presaleTeaTokenC, user3),
+			vesting.getVestingUsers(user3, presaleTeaTokenC),
+			vesting.getUserUnlockReward(presaleTeaTokenC, user3),
 			teaToken.balanceOf(user3),
 		]);
 
-		await teaVesting.connect(user3).claim(presaleTeaTokenC, user3);
-		await teaVesting.getVestingUsers(user3, presaleTeaTokenC);
-		let unlockedRewardAfter = await teaVesting.getUserUnlockReward(presaleTeaTokenC, user3);
+		await vesting.connect(user3).claim(presaleTeaTokenC, user3);
+		await vesting.getVestingUsers(user3, presaleTeaTokenC);
+		let unlockedRewardAfter = await vesting.getUserUnlockReward(presaleTeaTokenC, user3);
 		let balance = await teaToken.balanceOf(user3);
 
 		expect(
@@ -386,13 +386,13 @@ describe('TeaVesting', () => {
 	});
 
 	it('Nothing to claim revert', async() => {
-		const revertTx = teaVesting.connect(user3).claim(presaleTeaTokenC, user3);
+		const revertTx = vesting.connect(user3).claim(presaleTeaTokenC, user3);
 		await expect(revertTx).to.be.reverted;
 	});
 
 	it('Transfer ownership via off-chain', async () => {
 		const sigExpired = await getSignatureOffChainOwnership(
-			teaVesting,
+			vesting,
 			user1,
 			user2,
 			presaleTeaTokenC,
@@ -400,7 +400,7 @@ describe('TeaVesting', () => {
 		);
 
 		const sigInvalid = await getSignatureOffChainOwnership(
-			teaVesting,
+			vesting,
 			user1,
 			user2,
 			presaleTeaTokenC,
@@ -408,34 +408,34 @@ describe('TeaVesting', () => {
 		);
 		sigInvalid.from = user4.address;
 	
-		const revertedInvalidSig = teaVesting.connect(user1).transferOwnerOffChain(sigInvalid);
-		await expect(revertedInvalidSig).to.be.revertedWithCustomError(teaVesting, 'SignatureInvalid');
+		const revertedInvalidSig = vesting.connect(user1).transferOwnerOffChain(sigInvalid);
+		await expect(revertedInvalidSig).to.be.revertedWithCustomError(vesting, 'SignatureInvalid');
 
 		await increaseTimestamp(ONE_MONTH);
 
-		const revertedExpiredSig = teaVesting.connect(user1).transferOwnerOffChain(sigExpired);
+		const revertedExpiredSig = vesting.connect(user1).transferOwnerOffChain(sigExpired);
 		await expect(revertedExpiredSig).to.be.reverted;
 
 
 		const sig = await getSignatureOffChainOwnership(
-			teaVesting,
+			vesting,
 			user1,
 			ownerVesting,
 			presaleTeaTokenC,
 			2, // user3 accountIndex in mnemonic
 		);
-		await teaVesting.connect(ownerVesting).transferOwnerOffChain(sig);
-		const ownerOfUser1 = await teaVesting.getVestingOwners(user1, presaleTeaTokenC)
+		await vesting.connect(ownerVesting).transferOwnerOffChain(sig);
+		const ownerOfUser1 = await vesting.getVestingOwners(user1, presaleTeaTokenC)
 		expect(ownerOfUser1).to.equal(ownerVesting.address);
 	})
 
 	it('User cannot vest or claim after transferd ownership', async() => {
 		await Promise.all([
 			presaleTeaTokenB.connect(deployer).transfer(user1, thousand),
-			presaleTeaTokenB.connect(user2).approve(teaVesting, thousand)
+			presaleTeaTokenB.connect(user2).approve(vesting, thousand)
 		]);
-		const revertVest = teaVesting.connect(user2).vest(presaleTeaTokenB, thousand);
-		const revertClaim = teaVesting.connect(user2).claim(presaleTeaTokenB, user2);
+		const revertVest = vesting.connect(user2).vest(presaleTeaTokenB, thousand);
+		const revertClaim = vesting.connect(user2).claim(presaleTeaTokenB, user2);
 
 		expect(revertVest).to.be.reverted;
 		expect(revertClaim).to.be.reverted;
@@ -443,14 +443,14 @@ describe('TeaVesting', () => {
 
 	it('Try to transfer ownership via off-chain and onChain should be reverted', async () => {
 		const sig = await getSignatureOffChainOwnership(
-			teaVesting,
+			vesting,
 			user1,
 			user2,
 			presaleTeaTokenC,
 			2, // user3 accountIndex in mnemonic
 		);
-		const revertTxOffChain = teaVesting.connect(user2).transferOwnerOffChain(sig);
-		const revertTxOnChain = teaVesting.connect(user1).transferOwnerOnChain(presaleTeaTokenC, user1, user2);
+		const revertTxOffChain = vesting.connect(user2).transferOwnerOffChain(sig);
+		const revertTxOnChain = vesting.connect(user1).transferOwnerOnChain(presaleTeaTokenC, user1, user2);
 
 		await expect(revertTxOffChain).to.be.reverted;
 		await expect(revertTxOnChain).to.be.reverted;
@@ -460,30 +460,30 @@ describe('TeaVesting', () => {
 	it('Try to transfer ownership via off-chain and onChain should be reverted', async () => {
 		await Promise.all([
 			presaleTeaTokenA.connect(deployer).transfer(user4, thousand),
-			presaleTeaTokenA.connect(user4).approve(teaVesting, thousand)
+			presaleTeaTokenA.connect(user4).approve(vesting, thousand)
 		]);
-		await teaVesting.connect(user4).vest(presaleTeaTokenA, thousand);
+		await vesting.connect(user4).vest(presaleTeaTokenA, thousand);
 		const balanceUser4 = await teaToken.balanceOf(user4);
 
-		const revertedClaim = teaVesting.connect(user4).claim(presaleTeaTokenA, user4);
+		const revertedClaim = vesting.connect(user4).claim(presaleTeaTokenA, user4);
 
 		await expect(revertedClaim).to.be.reverted;
 		expect(balanceUser4).to.equal(thousand);
 	})
 
 	it('Test forceTransfer', async() => {
-		await presaleTeaTokenA.connect(deployer).transfer(teaVesting, thousand);
+		await presaleTeaTokenA.connect(deployer).transfer(vesting, thousand);
 		const balanceBefore = await presaleTeaTokenA.balanceOf(deployer);
 
-		await teaVesting.connect(ownerVesting).forceTransfer(presaleTeaTokenA, deployer, thousand);
+		await vesting.connect(ownerVesting).forceTransfer(presaleTeaTokenA, deployer, thousand);
 
 		const balanceAfter = await presaleTeaTokenA.balanceOf(deployer);
 		expect(balanceBefore + thousand).to.equal(balanceAfter);
 	})
 });
 
-describe('TeaVesting', () => {
-	let teaVesting: TeaVesting
+describe('vesting', () => {
+	let vesting: vesting
   	let teaToken: TestERC20;
 	let presaleTeaTokenA: TestERC20;
 	let presaleTeaTokenB: TestERC20;
@@ -523,8 +523,8 @@ it('Setup core contract: should revert ZTVB case (Zero Time Value Bypass)', asyn
 
 		currentTimestamp = getCurrentTimestamp() + 100;
 		nextMonth = currentTimestamp + ONE_MONTH;
-		const revertTx = new TeaVesting__factory(deployer).deploy(
-			'TeaVesting', 																						// _name 
+		const revertTx = new Vesting__factory(deployer).deploy(
+			'vesting', 																						// _name 
 			ownerVesting.address, 																				// _initialOwner
 			teaToken, 																							// _tea
 			treasury, 																							// _treasury
