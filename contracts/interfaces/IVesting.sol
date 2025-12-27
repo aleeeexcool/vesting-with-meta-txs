@@ -55,7 +55,7 @@ interface IVesting {
      * 
      * @param token Address of the presale token
      * @param from Address of the user
-     * @param amountGet Amount of the TEA tokens to be vested
+     * @param amountGet Amount of the Tokens to be vested
      */
     event Claim(
         address token,
