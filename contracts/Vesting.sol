@@ -20,7 +20,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
     mapping(address => mapping(address => address)) public getVestingOwners; // userWallet => presaleToken => sideOwner
     mapping(address => VestingOption) public getVestingTokens; // presaleToken => VestingOption
     
-    address public immutable tea;
+    address public immutable token;
     address public immutable treasury;
 
     bytes32 public constant TRANSFER_OWNER_TYPEHASH = 
@@ -33,7 +33,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
      * @dev Constructor
      * @param _name - See {EIP712}
      * @param initialOwner - Initial owner of the contract
-     * @param _tea - Address of the TEA token
+     * @param _token - Address of the token
      * @param _treasury - Address of the treasury
      * @param _trustedForwarder - See {ERC2771}
      * @param tokenAddrs - Array of the presale token addresses for each tier
@@ -44,7 +44,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
     constructor(
         string memory _name,
         address initialOwner,
-        address _tea,
+        address _token,
         address _treasury, 
         address _trustedForwarder,
         address[] memory tokenAddrs,
@@ -52,14 +52,14 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
         uint256[] memory dataEnds,
         uint256[] memory percentUnlocks
     ) Ownable(initialOwner) EIP712(_name, "1") ERC2771Context(_trustedForwarder) {
-        if (_tea == ZERO_ADDRESS || _treasury == ZERO_ADDRESS) {
+        if (_token == ZERO_ADDRESS || _treasury == ZERO_ADDRESS) {
             revert ZeroAddress();
         }
 
-        tea = _tea;
+        token = _token;
         treasury = _treasury;
 
-        uint256 teaDecimal = IERC20Metadata(_tea).decimals();
+        uint256 tokenDecimal = IERC20Metadata(_token).decimals();
         uint256 len = tokenAddrs.length;
 
         if (dataStarts.length != len || 
@@ -72,7 +72,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
             if (tokenAddrs[i] == ZERO_ADDRESS) {
                 revert ZeroAddress();
             }
-            if(IERC20Metadata(tokenAddrs[i]).decimals() != teaDecimal) {
+            if(IERC20Metadata(tokenAddrs[i]).decimals() != tokenDecimal) {
                 revert WrongTokenConfig();
             }
             if(percentUnlocks[i] >= 1000) {
@@ -418,7 +418,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
         uint256 vestedUnlock
     ) internal {
         IERC20(tokenAddr).safeTransferFrom(userAddr, address(this), amountToBurn); 
-        IERC20(tea).safeTransferFrom(treasury, userAddr, vestedUnlock + initialUnlock);
+        IERC20(token).safeTransferFrom(treasury, userAddr, vestedUnlock + initialUnlock);
         emit Vest(tokenAddr, userAddr, amountToBurn, initialUnlock, vestedUnlock);
     }
 
@@ -436,7 +436,7 @@ contract Vesting is IVesting, Ownable, ReentrancyGuard, ERC2771Context, EIP712, 
         if (amountToUnlock == 0) {
             revert VestingNothingToClaim();
         }
-        IERC20(tea).safeTransferFrom(treasury, userAddr, amountToUnlock);
+        IERC20(token).safeTransferFrom(treasury, userAddr, amountToUnlock);
         emit Claim(tokenAddr, userAddr, amountToUnlock);
     }
 
